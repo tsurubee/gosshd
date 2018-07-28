@@ -64,7 +64,7 @@ func handleChannel(newChannel ssh.NewChannel) {
 		return
 	}
 
-	connection, _, err := newChannel.Accept()
+	sshChannel, _, err := newChannel.Accept()
 	if err != nil {
 		log.Fatalf("Could not accept channel (%s)", err)
 		return
@@ -73,7 +73,7 @@ func handleChannel(newChannel ssh.NewChannel) {
 	bash := exec.Command("bash")
 
 	close := func() {
-		connection.Close()
+		sshChannel.Close()
 		_, err := bash.Process.Wait()
 		if err != nil {
 			log.Printf("Failed to exit bash (%s)", err)
@@ -81,7 +81,7 @@ func handleChannel(newChannel ssh.NewChannel) {
 		log.Printf("Session closed")
 	}
 
-	bashf, err := pty.Start(bash)
+	f, err := pty.Start(bash)
 	if err != nil {
 		log.Printf("Could not start pty (%s)", err)
 		close()
@@ -90,11 +90,11 @@ func handleChannel(newChannel ssh.NewChannel) {
 
 	var once sync.Once
 	go func() {
-		io.Copy(connection, bashf)
+		io.Copy(sshChannel, f)
 		once.Do(close)
 	}()
 	go func() {
-		io.Copy(bashf, connection)
+		io.Copy(f, sshChannel)
 		once.Do(close)
 	}()
 }
