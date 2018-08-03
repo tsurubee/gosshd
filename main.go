@@ -1,100 +1,63 @@
 package main
 
 import (
-	"golang.org/x/crypto/ssh"
+	"github.com/gliderlabs/ssh"
+	gossh "golang.org/x/crypto/ssh"
 	"log"
-	"net"
-	"io/ioutil"
-	"fmt"
-	"os/exec"
-	"github.com/kr/pty"
-	"sync"
+	"bytes"
+	"errors"
 	"io"
+	"strings"
 )
 
+// TODO The linkage information between the user name and the host name is acquired from the database.
+func findUpstreamByUsername(username string) (string, error) {
+	if username == "tsurubee" {
+		return "host-tsurubee", nil
+	} else if username == "bob" {
+		return "host-bob", nil
+	}
+	return "", errors.New(username + "'s host is not found!")
+}
+
 func main() {
-	serverConfig := &ssh.ServerConfig{
-		NoClientAuth: true,
-	}
-
-	privateKeyBytes, err := ioutil.ReadFile("id_rsa")
-	if err != nil {
-		log.Fatal("Failed to load private key (./id_rsa)")
-	}
-
-	privateKey, err := ssh.ParsePrivateKey(privateKeyBytes)
-	if err != nil {
-		log.Fatal("Failed to parse private key")
-	}
-
-	serverConfig.AddHostKey(privateKey)
-
-	listener, err := net.Listen("tcp", "0.0.0.0:2222")
-	if err != nil {
-		log.Fatalf("Failed to listen on 2222 (%s)", err)
-	}
-	log.Print("Listening on 2222...")
-
-	for {
-		tcpConn, err := listener.Accept()
+	ssh.Handle(func(sess ssh.Session) {
+		username := sess.User()
+		upstream, err := findUpstreamByUsername(sess.User())
 		if err != nil {
-			log.Fatalf("Failed to accept on 2222 (%s)", err)
+			log.Fatal(err.Error())
+		}
+		log.Printf("Connecting for %s by %s\n", upstream, username)
+
+		config := &gossh.ClientConfig{
+			User: username,
+			Auth: []gossh.AuthMethod{
+				gossh.Password("test"),
+			},
+			HostKeyCallback: gossh.InsecureIgnoreHostKey(),
 		}
 
-		sshConn, chans, reqs, err := ssh.NewServerConn(tcpConn, serverConfig)
+		clientConn, err := gossh.Dial("tcp", upstream + ":22", config)
 		if err != nil {
-			log.Fatalf("Failed to handshake (%s)", err)
+			panic(err)
 		}
-		log.Printf("New SSH connection from %s (%s)", sshConn.RemoteAddr(), sshConn.ClientVersion())
+		defer clientConn.Close()
 
-		go ssh.DiscardRequests(reqs)
-		go handleChannels(chans)
-	}
-}
-
-func handleChannels(chans <-chan ssh.NewChannel) {
-	for newChannel := range chans {
-		go handleChannel(newChannel)
-	}
-}
-
-func handleChannel(newChannel ssh.NewChannel) {
-	if t := newChannel.ChannelType(); t != "session" {
-		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("Unknown channel type: %s", t))
-		return
-	}
-
-	sshChannel, _, err := newChannel.Accept()
-	if err != nil {
-		log.Fatalf("Could not accept channel (%s)", err)
-		return
-	}
-
-	bash := exec.Command("bash")
-
-	close := func() {
-		sshChannel.Close()
-		_, err := bash.Process.Wait()
+		usess, err := clientConn.NewSession()
 		if err != nil {
-			log.Printf("Failed to exit bash (%s)", err)
+			panic(err)
 		}
-		log.Printf("Session closed")
-	}
+		defer usess.Close()
 
-	f, err := pty.Start(bash)
-	if err != nil {
-		log.Printf("Could not start pty (%s)", err)
-		close()
-		return
-	}
+		var b bytes.Buffer
+		usess.Stdout = &b
+		if err := usess.Run("hostname"); err != nil {
+			log.Fatal("Failed to run: " + err.Error())
+		}
+		r := strings.NewReader(b.String())
+		io.Copy(sess, r)
+	})
 
-	var once sync.Once
-	go func() {
-		io.Copy(sshChannel, f)
-		once.Do(close)
-	}()
-	go func() {
-		io.Copy(f, sshChannel)
-		once.Do(close)
-	}()
+	log.Println("Starting ssh server on port 2222")
+	ssh.ListenAndServe(":2222", nil)
 }

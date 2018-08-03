@@ -1,11 +1,24 @@
 version: '3'
 
 services:
-  gosshd:
+  ssh-proxy:
     image: golang:latest
+    hostname: 'ssh-proxy'
     ports:
       - 2222:2222
     volumes:
-      - ../gosshd:/go/src/gosshd
-    working_dir: /go/src/gosshd
+      - ../sshr:/go/src/sshr
+    working_dir: /go/src/sshr/
     command: make server
+    links:
+      - host-tsurubee:host-tsurubee
+      - host-bob:host-bob
+
+  host-tsurubee:
+    build: ./docker/host-tsurubee
+    hostname: 'host-tsurubee'
+
+  host-bob:
+    build: ./docker/host-bob
+    hostname: 'host-bob'
+

@@ -2,16 +2,24 @@
 
 
 [[projects]]
-  digest = "1:094e04c4742b596bce4455eb535d4e4365016b44016db76f8593211406d77299"
-  name = "github.com/kr/pty"
+  branch = "master"
+  digest = "1:1a200e7e73293b75eb8e5c93d023b5472663432da0b663e1532624fcfede9ca8"
+  name = "github.com/anmitsu/go-shlex"
   packages = ["."]
   pruneopts = "UT"
-  revision = "fa756f09eeb418bf1cc6268c66ceaad9bb98f598"
-  version = "v1.1.2"
+  revision = "648efa622239a2f6ff949fed78ee37b48d499ba4"
+
+[[projects]]
+  digest = "1:74d60c90a8daf329b92887e404a23d999ff95bc7a9c111476c1753bcf178e384"
+  name = "github.com/gliderlabs/ssh"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d3a6756290240931faaf90ec97ddd5d9290623d8"
+  version = "v0.1.1"
 
 [[projects]]
   branch = "master"
-  digest = "1:1922d177ca458baf48c2bf730493d9b09df4090c8e478bd0777ae253bf47985b"
+  digest = "1:6126c75359647f32c1437fead4933069915ead6a924cdf9f645a0e6e71262bff"
   name = "golang.org/x/crypto"
   packages = [
     "curve25519",
@@ -23,13 +31,13 @@
     "ssh",
   ]
   pruneopts = "UT"
-  revision = "c126467f60eb25f8f27e5a981f32a87e3965053f"
+  revision = "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/kr/pty",
+    "github.com/gliderlabs/ssh",
     "golang.org/x/crypto/ssh",
   ]
   solver-name = "gps-cdcl"
